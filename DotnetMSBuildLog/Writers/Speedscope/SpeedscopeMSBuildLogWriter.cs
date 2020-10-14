@@ -5,9 +5,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
-namespace PauloMorgado.DotnetMSBuildLog.Writers
+namespace PauloMorgado.DotnetMSBuildLog.Writers.Speedscope
 {
     /// <summary>
     /// Exports provided StackSource to a https://www.speedscope.app/ format.
@@ -15,8 +16,9 @@ namespace PauloMorgado.DotnetMSBuildLog.Writers
     /// </summary>
     internal static class SpeedscopeMSBuildLogWriter
     {
-        private static JsonWriterOptions jsonWriterOptions = new JsonWriterOptions
+        private static readonly JsonWriterOptions jsonWriterOptions = new JsonWriterOptions
         {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
 #if DEBUG
             Indented = true,
 #else
@@ -24,7 +26,7 @@ namespace PauloMorgado.DotnetMSBuildLog.Writers
 #endif
         };
 
-        public static void WriteTo(Build build, string filePath)
+        public static void WriteTo(Build build, string filePath, bool includeAllTasks)
         {
             var frames = new List<string>();
             var buildNodes = new Dictionary<int, LinkedList<SpeedscopeEvent>>();
@@ -72,7 +74,7 @@ namespace PauloMorgado.DotnetMSBuildLog.Writers
 
             if (node.HasChildren)
             {
-                var childLevel = (level + (1u << 16)) & (0xFFFFu << 16);
+                var childLevel = level + (1u << 16) & 0xFFFFu << 16;
 
                 foreach (var childNode in node.Children)
                 {
@@ -310,7 +312,7 @@ namespace PauloMorgado.DotnetMSBuildLog.Writers
                     }
                     else
                     {
-                        int result = this.IsStart ? 1 : -1;
+                        var result = this.IsStart ? 1 : -1;
 
                         if (this.Frame == other.Frame)
                         {

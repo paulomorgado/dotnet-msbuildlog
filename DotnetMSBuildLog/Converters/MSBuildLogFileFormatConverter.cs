@@ -1,15 +1,15 @@
-﻿using System;
+﻿using Microsoft.Build.Logging.StructuredLogger;
+using PauloMorgado.DotnetMSBuildLog.Binlog;
+using PauloMorgado.DotnetMSBuildLog.Writers.Chromium;
+using PauloMorgado.DotnetMSBuildLog.Writers.Speedscope;
+using System;
 using System.Collections.Immutable;
 using System.CommandLine;
 using System.CommandLine.IO;
 using System.IO;
-using Microsoft.Build.Logging.StructuredLogger;
-using PauloMorgado.DotnetMSBuildLog.Writers;
 
 namespace PauloMorgado.DotnetMSBuildLog.Converters
 {
-    internal enum MSBuildLogFileFormat { MSBuildBinaryLog, Speedscope };
-
     internal static class MSBuildLogFileFormatConverter
     {
         private static ImmutableDictionary<MSBuildLogFileFormat, string> TraceFileFormatExtensions = GetTraceFileFormatExtensions();
@@ -19,10 +19,11 @@ namespace PauloMorgado.DotnetMSBuildLog.Converters
             var builder = ImmutableDictionary.CreateBuilder<MSBuildLogFileFormat, string>();
             builder.Add(MSBuildLogFileFormat.MSBuildBinaryLog, "binlog");
             builder.Add(MSBuildLogFileFormat.Speedscope, "speedscope.json");
+            builder.Add(MSBuildLogFileFormat.Chromium, "chromium.json");
             return builder.ToImmutable();
         }
 
-        internal static void ConvertToFormat(IConsole console, MSBuildLogFileFormat format, string fileToConvertFilePath, string outputFilePath)
+        internal static void ConvertToFormat(IConsole console, MSBuildLogFileFormat format, string fileToConvertFilePath, string outputFilePath, bool includeAllTasks)
         {
             if (string.IsNullOrWhiteSpace(outputFilePath))
             {
@@ -36,8 +37,9 @@ namespace PauloMorgado.DotnetMSBuildLog.Converters
             {
                 case MSBuildLogFileFormat.MSBuildBinaryLog:
                     break;
+                case MSBuildLogFileFormat.Chromium:
                 case MSBuildLogFileFormat.Speedscope:
-                    Convert(format, fileToConvertFilePath, outputFilePath);
+                    Convert(format, fileToConvertFilePath, outputFilePath, includeAllTasks);
                     break;
                 default:
                     // Validation happened way before this, so we shoud never reach this...
@@ -47,14 +49,17 @@ namespace PauloMorgado.DotnetMSBuildLog.Converters
             console.Out.WriteLine("Conversion complete");
         }
 
-        private static void Convert(MSBuildLogFileFormat format, string fileToConvertFilePath, string outputFilePath)
+        private static void Convert(MSBuildLogFileFormat format, string fileToConvertFilePath, string outputFilePath, bool includeAllTasks)
         {
-            var build = Serialization.Read(fileToConvertFilePath);
-
             switch (format)
             {
+                case MSBuildLogFileFormat.Chromium:
+                    var buildEnumerator = new BinlogEnumerable(fileToConvertFilePath);
+                    ChromiumMSBuildLogWriter.WriteTo(buildEnumerator, outputFilePath, includeAllTasks);
+                    break;
                 case MSBuildLogFileFormat.Speedscope:
-                    SpeedscopeMSBuildLogWriter.WriteTo(build, outputFilePath);
+                    var build = Serialization.Read(fileToConvertFilePath);
+                    SpeedscopeMSBuildLogWriter.WriteTo(build, outputFilePath, includeAllTasks);
                     break;
                 default:
                     // we should never get here

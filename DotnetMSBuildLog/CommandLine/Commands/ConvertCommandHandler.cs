@@ -14,6 +14,7 @@ namespace PauloMorgado.DotnetMSBuildLog.CommandLine.Commands
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public MSBuildLogFileFormat Format { get; set; }
         public FileInfo? OutputFileName { get; set; }
+        public bool IncludeAllTasks { get; set; }
     }
 
     internal static class ConvertCommandHandler
@@ -45,7 +46,12 @@ namespace PauloMorgado.DotnetMSBuildLog.CommandLine.Commands
                 arguments.OutputFileName = arguments.InputFileName;
             }
 
-            MSBuildLogFileFormatConverter.ConvertToFormat(arguments.Console, arguments.Format, arguments.InputFileName.FullName, arguments.OutputFileName.FullName);
+            MSBuildLogFileFormatConverter.ConvertToFormat(
+                arguments.Console,
+                arguments.Format,
+                arguments.InputFileName.FullName,
+                arguments.OutputFileName.FullName,
+                arguments.IncludeAllTasks);
 
             return 0;
         }
@@ -62,6 +68,7 @@ namespace PauloMorgado.DotnetMSBuildLog.CommandLine.Commands
                 InputFileArgument(),
                 ConvertFormatOption(),
                 OutputOption(),
+                IncludeAllTasksOption(),
             };
 
         private static Argument InputFileArgument() =>
@@ -73,7 +80,7 @@ namespace PauloMorgado.DotnetMSBuildLog.CommandLine.Commands
 
         public static Option ConvertFormatOption() =>
             new Option(
-                alias: "--format",
+                aliases: new[] { "-f", "--format" },
                 description: $"Sets the output format for the trace file conversion.")
             {
                 Argument = new Argument<MSBuildLogFileFormat>(name: "trace-file-format")
@@ -85,6 +92,14 @@ namespace PauloMorgado.DotnetMSBuildLog.CommandLine.Commands
                 description: "Output filename. Extension of target format will be added.")
             {
                 Argument = new Argument<FileInfo>(name: "output-filename")
+            };
+
+        private static Option IncludeAllTasksOption() =>
+            new Option(
+                aliases: new[] { "-t", "--tasks" },
+                description: "Include all tasks.")
+            {
+                Argument = new Argument<bool>(name: "include-all-tasks")
             };
     }
 }
